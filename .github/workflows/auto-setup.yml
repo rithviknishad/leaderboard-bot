@@ -20,6 +20,7 @@ jobs:
         with:
           app-id: ${{ vars.LEADERBOARD_BOT_ID }}
           private-key: ${{ secrets.LEADERBOARD_BOT_PRIVATE_KEY }}
+          owner: ${{ github.event.client_payload.payload.installation.account.login }}
 
       - name: Setup secrets and variables on target repositories
         env:
