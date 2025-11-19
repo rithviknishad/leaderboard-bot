@@ -27,16 +27,17 @@ jobs:
           GH_TOKEN: ${{ steps.app_token.outputs.token }}
           LEADERBOARD_BOT_ID: ${{ vars.LEADERBOARD_BOT_ID }}
           LEADERBOARD_BOT_PRIVATE_KEY: ${{ secrets.LEADERBOARD_BOT_PRIVATE_KEY }}
+          GITHUB_EVENT_JSON: ${{ toJson(github.event) }}
         run: |
           set -euo pipefail
 
-          # Read the payload
-          payload="$(jq -c '.client_payload.payload' <<<"${{ toJson(github.event) }}")"
-          installation_id=$(jq -r '.installation.id' <<<"$payload")
+          # Read the payload from environment variable
+          payload="$(echo "$GITHUB_EVENT_JSON" | jq -c '.client_payload.payload')"
+          installation_id=$(echo "$payload" | jq -r '.installation.id')
 
           # Get list of repositories from the payload
           # Handle different event types: installation.created has .repositories, installation_repositories.added has .repositories_added
-          repos=$(jq -r '(.repositories // .repositories_added // []) | .[] | .full_name' <<<"$payload")
+          repos=$(echo "$payload" | jq -r '(.repositories // .repositories_added // []) | .[] | .full_name')
 
           echo "Installation ID: $installation_id"
           echo "Repositories to configure: $repos"
