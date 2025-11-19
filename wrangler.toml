@@ -1,0 +1,22 @@
+# Cloudflare Worker configuration for leaderboard-bot
+name = "leaderboard-bot"
+main = "src/index.ts"
+compatibility_date = "2024-11-19"
+
+# Account ID - set this to your Cloudflare account ID
+# account_id = "your-account-id-here"
+
+# Workers Paid: Uncomment to enable
+# workers_dev = false
+# route = "https://your-domain.com/webhook"
+
+# Environment variables (non-sensitive)
+# [vars]
+# ENVIRONMENT = "production"
+
+# Secrets (set via: wrangler secret put <SECRET_NAME>)
+# - AUTOMATION_REPO_TRIGGER_TOKEN: GitHub Personal Access Token with repo scope
+#   for triggering repository_dispatch events on ohcnetwork/leaderboard-bot
+# - GITHUB_WEBHOOK_SECRET: Webhook secret configured in GitHub App settings
+#   for verifying webhook signatures (HMAC-SHA256)
+
