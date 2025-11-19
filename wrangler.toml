@@ -16,7 +16,6 @@ compatibility_date = "2024-11-19"
 
 # Secrets (set via: wrangler secret put <SECRET_NAME>)
 # - AUTOMATION_REPO_TRIGGER_TOKEN: GitHub Personal Access Token with repo scope
-#   for triggering repository_dispatch events on ohcnetwork/leaderboard-bot
+#   for triggering repository_dispatch events on rithviknishad/leaderboard-bot
 # - GITHUB_WEBHOOK_SECRET: Webhook secret configured in GitHub App settings
 #   for verifying webhook signatures (HMAC-SHA256)
-

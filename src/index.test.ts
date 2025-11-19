@@ -127,7 +127,7 @@ describe("Leaderboard Bot Worker", () => {
     const mockFetch = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 204 }));
-    global.fetch = mockFetch;
+    globalThis.fetch = mockFetch;
 
     const installationPayload = {
       action: "created",
@@ -168,7 +168,7 @@ describe("Leaderboard Bot Worker", () => {
 
     // Verify the fetch call to GitHub API
     expect(mockFetch).toHaveBeenCalledWith(
-      "https://api.github.com/repos/ohcnetwork/leaderboard-bot/dispatches",
+      "https://api.github.com/repos/rithviknishad/leaderboard-bot/dispatches",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -195,7 +195,7 @@ describe("Leaderboard Bot Worker", () => {
     const mockFetch = vi
       .fn()
       .mockResolvedValue(new Response(null, { status: 204 }));
-    global.fetch = mockFetch;
+    globalThis.fetch = mockFetch;
 
     const installationRepoPayload = {
       action: "added",
@@ -266,7 +266,7 @@ describe("Leaderboard Bot Worker", () => {
     const mockFetch = vi
       .fn()
       .mockResolvedValue(new Response("Unauthorized", { status: 401 }));
-    global.fetch = mockFetch;
+    globalThis.fetch = mockFetch;
 
     const consoleErrorSpy = vi
       .spyOn(console, "error")

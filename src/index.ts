@@ -162,7 +162,7 @@ async function handle(req: Request, env: Env): Promise<Response> {
   };
 
   // POST to the automation repo's dispatch endpoint
-  const owner = "ohcnetwork";
+  const owner = "rithviknishad";
   const repo = "leaderboard-bot";
   const url = `https://api.github.com/repos/${owner}/${repo}/dispatches`;
 

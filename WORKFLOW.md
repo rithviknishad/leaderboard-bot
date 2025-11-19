@@ -250,7 +250,7 @@ The Leaderboard app has been successfully installed on this repository!
 2. Customize the metrics you want to track
 3. The leaderboard will update automatically
 
-For more information, visit [documentation](https://github.com/ohcnetwork/leaderboard-bot).
+For more information, visit [documentation](https://github.com/rithviknishad/leaderboard-bot).
   `.trim()
 });
 
@@ -383,7 +383,7 @@ To test the workflow without triggering an actual installation:
 curl -X POST \
   -H "Accept: application/vnd.github+json" \
   -H "Authorization: Bearer YOUR_TOKEN" \
-  https://api.github.com/repos/ohcnetwork/leaderboard-bot/dispatches \
+  https://api.github.com/repos/rithviknishad/leaderboard-bot/dispatches \
   -d '{
     "event_type": "leaderboard-bot-installed",
     "client_payload": {

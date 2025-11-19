@@ -56,13 +56,13 @@ pnpm wrangler secret put GITHUB_WEBHOOK_SECRET
 
 **AUTOMATION_REPO_TRIGGER_TOKEN** - GitHub Personal Access Token that needs:
 - `repo` scope (to trigger repository_dispatch events)
-- Access to the `ohcnetwork/leaderboard-bot` repository
+- Access to the `rithviknishad/leaderboard-bot` repository
 
 **GITHUB_WEBHOOK_SECRET** - The webhook secret you configure in your GitHub App settings. This is used to verify that webhook requests are actually coming from GitHub using HMAC-SHA256 signatures.
 
 ### 4. Configure GitHub Repository Secrets
 
-For the automation workflow to work, add these secrets to your `ohcnetwork/leaderboard-bot` repository:
+For the automation workflow to work, add these secrets to your `rithviknishad/leaderboard-bot` repository:
 
 1. Go to repository Settings → Secrets and variables → Actions
 2. Add the following secrets:
@@ -159,7 +159,7 @@ After deployment:
 
 3. The worker validates the request and filters for relevant events
 
-4. For installation-related events, the worker forwards them to `ohcnetwork/leaderboard-bot` via the GitHub API's `repository_dispatch` endpoint
+4. For installation-related events, the worker forwards them to `rithviknishad/leaderboard-bot` via the GitHub API's `repository_dispatch` endpoint
 
 5. The automation repository can then handle the event with a GitHub Actions workflow
 
