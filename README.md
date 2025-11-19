@@ -60,15 +60,17 @@ pnpm wrangler secret put GITHUB_WEBHOOK_SECRET
 
 **GITHUB_WEBHOOK_SECRET** - The webhook secret you configure in your GitHub App settings. This is used to verify that webhook requests are actually coming from GitHub using HMAC-SHA256 signatures.
 
-### 4. Configure GitHub Repository Secrets
+### 4. Configure GitHub Repository Secrets and Variables
 
-For the automation workflow to work, add these secrets to your `rithviknishad/leaderboard-bot` repository:
+For the automation workflow to work, add these to your `rithviknishad/leaderboard-bot` repository:
 
 1. Go to repository Settings → Secrets and variables → Actions
-2. Add the following secrets:
 
-- **LEADERBOARD_APP_ID**: Your GitHub App ID (found in App settings)
-- **LEADERBOARD_APP_PRIVATE_KEY**: Your GitHub App private key (PEM format)
+2. Under the **Variables** tab, add:
+   - **LEADERBOARD_BOT_ID**: Your GitHub App ID (found in App settings)
+
+3. Under the **Secrets** tab, add:
+   - **LEADERBOARD_BOT_PRIVATE_KEY**: Your GitHub App private key (PEM format)
 
 To generate a private key for your GitHub App:
 1. Go to your GitHub App settings
@@ -165,17 +167,17 @@ After deployment:
 
 ## Installation Handler Workflow
 
-The repository includes a GitHub Actions workflow (`.github/workflows/handle-installation.yml`) that automatically processes installation events:
+The repository includes a GitHub Actions workflow (`.github/workflows/auto-setup.yml`) that automatically processes installation events:
 
 ### What It Does
 
 1. **Receives repository_dispatch events** from the Cloudflare Worker
-2. **Authenticates as the GitHub App** using JWT and creates installation tokens
-3. **Processes each installed repository**:
-   - Verifies repository access
-   - Sets up leaderboard configuration
-   - Creates necessary workflow files
-   - Initializes leaderboard data
+2. **Authenticates as the GitHub App** using the app credentials stored in this repository
+3. **Sets up credentials on each installed repository**:
+   - Sets `LEADERBOARD_BOT_ID` as a repository variable
+   - Sets `LEADERBOARD_BOT_PRIVATE_KEY` as a repository secret
+
+This allows the target repositories to use these credentials in their own workflows to generate installation tokens and interact with the GitHub API as the leaderboard bot.
 
 ### How It Works
 
@@ -185,25 +187,33 @@ graph LR
     B --> C[Worker Verifies Signature]
     C --> D[Worker Dispatches Event]
     D --> E[Workflow Triggered]
-    E --> F[Create App JWT]
+    E --> F[Authenticate as App]
     F --> G[Get Installation Token]
-    G --> H[Setup Each Repo]
+    G --> H[Set Secrets/Variables on Target Repos]
 ```
 
-### Customizing the Workflow
+### Using the Bot in Target Repositories
 
-The workflow includes a placeholder section where you can add your custom setup logic:
+Once the bot is installed, target repositories will have access to:
+- `LEADERBOARD_BOT_ID` (variable)
+- `LEADERBOARD_BOT_PRIVATE_KEY` (secret)
 
-```javascript
-// TODO: Add your leaderboard setup logic here
-// Examples:
-// 1. Create/update leaderboard workflow file
-// 2. Create leaderboard configuration file
-// 3. Initialize leaderboard data
-// 4. Create initial PR with setup
+These can be used in GitHub Actions workflows to generate installation tokens:
+
+```yaml
+- name: Generate app token
+  id: app_token
+  uses: actions/create-github-app-token@v1
+  with:
+    app-id: ${{ vars.LEADERBOARD_BOT_ID }}
+    private-key: ${{ secrets.LEADERBOARD_BOT_PRIVATE_KEY }}
+
+- name: Use the token
+  env:
+    GH_TOKEN: ${{ steps.app_token.outputs.token }}
+  run: |
+    gh api /user
 ```
-
-Edit `.github/workflows/handle-installation.yml` to implement your specific setup requirements.
 
 ## Project Structure
 
@@ -211,8 +221,8 @@ Edit `.github/workflows/handle-installation.yml` to implement your specific setu
 .
 ├── .github/
 │   └── workflows/
-│       ├── test.yml                    # CI/CD test workflow
-│       └── handle-installation.yml     # Installation handler workflow
+│       ├── test.yml           # CI/CD test workflow
+│       └── auto-setup.yml     # Installation handler workflow
 ├── src/
 │   ├── index.ts          # Main worker code
 │   └── index.test.ts     # Test suite
@@ -231,10 +241,23 @@ Edit `.github/workflows/handle-installation.yml` to implement your specific setu
 - `AUTOMATION_REPO_TRIGGER_TOKEN`: GitHub Personal Access Token for triggering repository_dispatch events
 - `GITHUB_WEBHOOK_SECRET`: Webhook secret for verifying GitHub webhook signatures (must match the secret configured in GitHub App settings)
 
-### GitHub Repository Secrets (in repository settings)
+### GitHub Repository Configuration (in `rithviknishad/leaderboard-bot` repository settings)
 
-- `LEADERBOARD_APP_ID`: GitHub App ID
-- `LEADERBOARD_APP_PRIVATE_KEY`: GitHub App private key (PEM format)
+**Variables** (Settings → Secrets and variables → Actions → Variables):
+- `LEADERBOARD_BOT_ID`: GitHub App ID
+
+**Secrets** (Settings → Secrets and variables → Actions → Secrets):
+- `LEADERBOARD_BOT_PRIVATE_KEY`: GitHub App private key (PEM format)
+
+### Target Repository Configuration (automatically set by the workflow)
+
+When the bot is installed on a repository, the workflow automatically sets:
+
+**Variables**:
+- `LEADERBOARD_BOT_ID`: GitHub App ID (same as above)
+
+**Secrets**:
+- `LEADERBOARD_BOT_PRIVATE_KEY`: GitHub App private key (same as above)
 
 ## Troubleshooting
 

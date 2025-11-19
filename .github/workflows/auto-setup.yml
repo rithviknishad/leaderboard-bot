@@ -5,153 +5,69 @@ on:
     types: [leaderboard-bot-installed]
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
-  actions: read
+  contents: read
 
 jobs:
   handle-installation:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout automation repository
-        uses: actions/checkout@v4
+      - name: Show event
+        run: echo "${{ toJson(github.event) }}" > event.json && cat event.json
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Authenticate as GitHub App Installation (create token for the installation)
+        id: app_token
+        uses: actions/create-github-app-token@v1
         with:
-          node-version: "24"
+          app-id: ${{ vars.LEADERBOARD_BOT_ID }}
+          private-key: ${{ secrets.LEADERBOARD_BOT_PRIVATE_KEY }}
 
-      - name: Install jsonwebtoken for JWT generation
-        run: npm install jsonwebtoken
-
-      - name: Read payload
-        id: payload
-        run: |
-          echo "${{ toJson(github.event.client_payload) }}" > payload.json
-          cat payload.json
-          echo "github_event=${{ github.event.client_payload.github_event }}" >> $GITHUB_OUTPUT
-
-      - name: Authenticate as GitHub App (create JWT)
-        id: app-jwt
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const jwt = require('jsonwebtoken');
-            const appId = process.env.LEADERBOARD_BOT_APP_ID;
-            const privateKey = process.env.LEADERBOARD_BOT_PRIVATE_KEY.replace(/\\n/g, '\n');
-
-            // Create JWT for GitHub App authentication
-            const token = jwt.sign(
-              {
-                iat: Math.floor(Date.now() / 1000) - 60,
-                exp: Math.floor(Date.now() / 1000) + (10 * 60),
-                iss: appId
-              },
-              privateKey,
-              { algorithm: 'RS256' }
-            );
-
-            core.setOutput('token', token);
-            core.setSecret(token);
-            return token;
+      - name: Setup secrets and variables on target repositories
         env:
-          LEADERBOARD_BOT_APP_ID: ${{ vars.LEADERBOARD_BOT_APP_ID }}
+          GH_TOKEN: ${{ steps.app_token.outputs.token }}
+          LEADERBOARD_BOT_ID: ${{ vars.LEADERBOARD_BOT_ID }}
           LEADERBOARD_BOT_PRIVATE_KEY: ${{ secrets.LEADERBOARD_BOT_PRIVATE_KEY }}
-
-      - name: Process installation and setup repositories
-        uses: actions/github-script@v7
-        env:
-          APP_JWT: ${{ steps.app-jwt.outputs.token }}
-        with:
-          script: |
-            const payload = context.payload.client_payload.payload;
-            const githubEvent = context.payload.client_payload.github_event;
-
-            console.log('Event type:', githubEvent);
-            console.log('Payload:', JSON.stringify(payload, null, 2));
-
-            // Extract installation id and repositories
-            const installation = payload.installation;
-            if (!installation) {
-              console.log('No installation in payload');
-              return;
-            }
-
-            const installId = installation.id;
-            let repos = [];
-
-            // Handle different event types
-            if (githubEvent === 'installation') {
-              repos = payload.repositories || [];
-              console.log(`Installation ${payload.action}: ${repos.length} repositories`);
-            } else if (githubEvent === 'installation_repositories') {
-              repos = payload.repositories_added || [];
-              console.log(`Repositories added: ${repos.length}`);
-            }
-
-            if (repos.length === 0) {
-              console.log('No repositories to process');
-              return;
-            }
-
-            console.log('Installation ID:', installId);
-            console.log('Repositories:', repos.map(r => r.full_name).join(', '));
-
-            // Get installation access token using the JWT
-            const { Octokit } = require('@octokit/rest');
-            const appOctokit = new Octokit({
-              auth: process.env.APP_JWT
-            });
-
-            const { data: installationToken } = await appOctokit.apps.createInstallationAccessToken({
-              installation_id: installId
-            });
-
-            console.log('✓ Created installation access token');
-
-            // Create authenticated octokit for this installation
-            const installOctokit = new Octokit({
-              auth: installationToken.token
-            });
-
-            // Process each repository
-            for (const repo of repos) {
-              const [owner, repoName] = repo.full_name.split('/');
-              console.log(`\n📦 Processing ${repo.full_name}...`);
-              
-              try {
-                // Check if repository exists and we have access
-                const { data: repoData } = await installOctokit.repos.get({
-                  owner,
-                  repo: repoName
-                });
-                
-                console.log(`  ✓ Repository found: ${repoData.full_name}`);
-                console.log(`  - Default branch: ${repoData.default_branch}`);
-                console.log(`  - Private: ${repoData.private}`);
-                
-                // TODO: Add your leaderboard setup logic here
-                // Examples:
-                // 1. Create/update leaderboard workflow file
-                // 2. Create leaderboard configuration file
-                // 3. Initialize leaderboard data
-                // 4. Create initial PR with setup
-                
-                console.log(`  ✓ Setup completed for ${repo.full_name}`);
-                
-              } catch (error) {
-                console.error(`  ✗ Error processing ${repo.full_name}:`, error.message);
-                // Continue with other repositories even if one fails
-              }
-            }
-
-            console.log('\n✅ Installation handling complete');
-
-      - name: Summary
         run: |
-          echo "## Installation Handler Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Event: \`${{ steps.payload.outputs.github_event }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Processed installation event successfully." >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+
+          # Read the payload
+          payload="$(jq -c '.client_payload.payload' <<<"${{ toJson(github.event) }}")"
+          installation_id=$(jq -r '.installation.id' <<<"$payload")
+
+          # Get list of repositories from the payload
+          # Handle different event types: installation.created has .repositories, installation_repositories.added has .repositories_added
+          repos=$(jq -r '(.repositories // .repositories_added // []) | .[] | .full_name' <<<"$payload")
+
+          echo "Installation ID: $installation_id"
+          echo "Repositories to configure: $repos"
+
+          # Process each repository
+          for repo_full in $repos; do
+            echo "========================================="
+            echo "Setting up $repo_full"
+            echo "========================================="
+            
+            owner=$(cut -d/ -f1 <<<"$repo_full")
+            repo=$(cut -d/ -f2 <<<"$repo_full")
+            
+            # Set the LEADERBOARD_BOT_ID as a repository variable
+            echo "Setting LEADERBOARD_BOT_ID variable..."
+            gh variable set LEADERBOARD_BOT_ID \
+              --repo "$repo_full" \
+              --body "$LEADERBOARD_BOT_ID" || {
+              echo "Warning: Failed to set LEADERBOARD_BOT_ID variable for $repo_full"
+            }
+            
+            # Set the LEADERBOARD_BOT_PRIVATE_KEY as a repository secret
+            echo "Setting LEADERBOARD_BOT_PRIVATE_KEY secret..."
+            echo "$LEADERBOARD_BOT_PRIVATE_KEY" | gh secret set LEADERBOARD_BOT_PRIVATE_KEY \
+              --repo "$repo_full" || {
+              echo "Warning: Failed to set LEADERBOARD_BOT_PRIVATE_KEY secret for $repo_full"
+            }
+            
+            echo "✓ Successfully configured $repo_full"
+            echo ""
+          done
+
+          echo "========================================="
+          echo "Setup complete for all repositories"
+          echo "========================================="
